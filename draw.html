@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        #main {
+            font-family: arial;
+            display: flex;
+            user-select: none;
+            transition: 0.25s ease;
+        }
+        #heading{
+            background-color: rgb(85, 125, 255);
+            font-size: 24px;
+            color: rgb(255, 255, 255);
+            height: 32px;
+            display: flex;
+            vertical-align: center;
+            border: 1px solid black;
+            border-bottom: none;
+        }
+        #word {
+            letter-spacing: 6px;
+        }
+        #time {
+            background-color: rgb(25, 195, 35);
+            margin-right: 8px;
+            padding: 0 8px;
+        }
+        #sidebar {
+            border: 1px solid black;
+            border-left: none;
+            width: 240px;
+            height: 673px;
+            display: flex;
+            flex-direction: column;
+        }
+        #canvas {
+            border-right: none;
+        }
+        #chat {
+            background-color: lightpink;
+            flex-direction: column;
+        }
+        #tools { 
+            background-color: lightseagreen;
+            border-bottom: 1px solid black;
+            display: flex;
+            flex-direction: column;
+        }
+        #chat, #tools {
+            display: flex;
+            height: 50%;
+        }
+        #chatter {
+            width: 100%;
+            border: none;
+            margin-bottom: 0;
+            margin-top: auto;
+        }
+        #chat-text {
+            overflow-y: scroll;
+            border-bottom: 1px solid black;
+        }
+        #sizes {
+            display: inherit;
+            width: 100%;
+            border-bottom: 1px solid black;
+            height: 68px;
+        }
+        #sizes > div {
+            display: inherit;
+            width: 100%;
+            flex-direction: column;
+            margin: 0 auto;
+        }
+        #sizes > div > div {
+            margin: 8px auto;
+        }
+        #sizes > div > div:hover {
+            cursor: pointer;
+            font-weight: bold;
+            text-align: center;
+        }
+        #clear {
+            transition: 0.25s ease;
+            padding: 8px;
+            text-align: center;
+            background-color: rgb(215, 85, 95);
+        }
+        #clear:hover {
+            cursor: pointer;
+            background-color: rgb(255, 55, 55);
+        }
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #plist {
+            width: 146px;
+            background-color: palevioletred;
+        }
+        #pheading {
+            margin: 0 auto;
+            font-size: 24px;
+            text-align: center;
+        }
+        #score-name {
+            font-size: 16px;
+        }
+        #plist > div {
+            padding: 4px;
+            border-bottom: 1px solid black;
+        }
+        .score-name {
+            font-size: 22px;
+        }
+    </style>
+    
+</head>
+<body>
+    <div id='main'>
+        <div>
+            <div id='heading'>
+                <div id='time'>Inf.</div>
+                <div id='word'>Intermission</div>
+            </div>
+            <canvas id='canvas'
+                    width='640'
+                    height='640'
+                    style='border: 1px solid black'>
+            </canvas>
+        </div>
+        <div id='sidebar'>
+            <div id='tools'>
+                <div id='sizes'>
+                    <div>
+                        <div id='size-s'>SMALL</div>
+                        <div id='size-n' style='font-weight:bold'>NORMAL</div>
+                    </div>
+                    <div>
+                        <div id='size-l'>LARGE</div>
+                        <div id='size-h'>HUGE</div>
+                    </div>
+                </div>
+                <div id='clear'>
+                    CLEAR
+                </div>
+            </div>
+            <div id='chat'>
+                <div id='chat-text'>
+                    
+                </div>
+                <input type='text' id='chatter'/>
+            </div>
+        </div>
+        <div id='plist'>
+            <div id='pheading'>Players</div>
+        </div>
+    </div>
+    <script>
+        /* Drawing */
+        var port = '32512';
+        var server = null;
+        
+        var name = prompt('username');
+        var server = new WebSocket('ws://10.0.0.9:' + port);
+
+        var canvas = document.getElementById('canvas');
+        var context = canvas.getContext('2d');
+
+        context.lineJoin = "round";
+        context.lineWidth = 5;
+
+        var updatePeriod = 100;
+        var gameLoop = null;
+        var mouseDown = 0;
+        var status = 0;
+        var color = "#000000"
+        var size = 5;
+        var isDrawing = false;
+        var index = 0;
+        var players = {};
+        var uid = null;
+        var clickX = new Array();
+        var clickY = new Array();
+        var clickDrag = new Array();
+        var clickColor = new Array();
+        var clickSize = new Array();
+
+        var chat = document.getElementById('chat-text');
+
+        server.onmessage = function (event) {
+            var d = JSON.parse(event.data);
+            console.log("Recieved: " + d.type);
+            if (d.type == 'drawing' && !isDrawing) {
+                clickX = clickX.concat(d.clickX);
+                clickY = clickY.concat(d.clickY);
+                clickDrag = clickDrag.concat(d.clickDrag);
+                clickColor = clickColor.concat(d.clickColor);
+                clickSize = clickSize.concat(d.clickSize);
+                draw();
+            } else if (d.type == 'plist') {
+                if (d.host == uid) {
+                    isDrawing = true;
+                    document.getElementById('tools').className = '';
+                } else {
+                    isDrawing = false;
+                    document.getElementById('tools').className = 'disabled';
+                }
+                players = d.list
+                renderPlayers();
+            } else if (d.type == 'uid') {
+                uid = d.uid;
+                server.send(JSON.stringify({
+                    type: "name",
+                    name: name
+                }));
+            } else if (d.type == 'chat') {
+                chat.innerHTML += "<div>"+ d.sender + ": " + d.message +"</div>";
+                chat.scrollTop = chat.scrollHeight;
+            } else if (d.type == 'clear' && !isDrawing) {
+                clearPage();
+            } else if (d.type == 'roundUpdate') {
+                document.getElementById('time').innerHTML = d.time;
+                if (isDrawing) {
+                    document.getElementById('word').innerHTML = d.realword;
+                } else {
+                    document.getElementById('word').innerHTML = d.wordhint;
+                }
+
+                if (d.time == 0) {
+                    isDrawing = false;
+                    clearPage();
+                }
+            }
+        }
+
+        function renderPlayers() {
+            var names = new Array;
+            var score = new Array;
+            var iht = '';
+
+            for (var i = 0; i < Object.keys(players).length; i++) {
+                names.push(players[Object.keys(players)[i]].name);
+                score.push(players[Object.keys(players)[i]].points);
+            }
+
+            for (var i = 0; i < score.length; i++) {
+                for (var k = 0; k < score.length; k++) {
+                    if (score[k] < score[k+1]) {
+                        temps = score[k];
+                        score[k] = score[k+1];
+                        score[k+1] = temps;
+
+                        tempn = names[k];
+                        names[k] = names[k+1];
+                        names[k+1] = tempn;
+                    }
+                }
+            }
+            
+            for (var i = 0; i < names.length; i++) {
+                iht += "<div><div class='score-name'>" + names[i] + "</div><div class='score-pts'>" + score[i] + "</div></div>";
+            }
+            plist.innerHTML = iht;
+        }
+
+        var callHome = setInterval(function(){
+            if (isDrawing) {
+                sendData = {
+                    type: "drawing",
+                    clickX: clickX.slice(index),
+                    clickY: clickY.slice(index),
+                    clickDrag: clickDrag.slice(index),
+                    clickColor: clickColor.slice(index),
+                    clickSize: clickSize.slice(index)
+                }
+                index = clickX.length;
+                if (sendData.clickX.length > 0) {
+                    server.send(JSON.stringify(sendData));
+                }
+            }
+        }, 100)
+
+        var chatter = document.getElementById('chatter');
+        chatter.addEventListener('keydown', function (e) {
+            if (e.keyCode == 13) {
+                server.send(JSON.stringify({
+                    type:"chat",
+                    sender:players[uid].name,
+                    message:chatter.value
+                }));
+                chatter.value = '';
+            }
+        })
+
+        function clearSizeMenu() {
+            document.getElementById('size-s').style.fontWeight = "normal";
+            document.getElementById('size-n').style.fontWeight = "normal";
+            document.getElementById('size-l').style.fontWeight = "normal";
+            document.getElementById('size-h').style.fontWeight = "normal";
+        }
+
+        document.getElementById('size-h').addEventListener("click", function () {
+            size = 40;
+            clearSizeMenu()
+            document.getElementById('size-h').style.fontWeight = "bold";
+        })
+
+        document.getElementById('size-l').addEventListener("click", function () {
+            size = 25;
+            clearSizeMenu()
+            document.getElementById('size-l').style.fontWeight = "bold";
+        })
+
+        document.getElementById('size-n').addEventListener("click", function () {
+            size = 5;
+            clearSizeMenu()
+            document.getElementById('size-n').style.fontWeight = "bold";
+        })
+
+        document.getElementById('size-s').addEventListener("click", function () {
+            size = 2.5;
+            clearSizeMenu()
+            document.getElementById('size-s').style.fontWeight = "bold";
+        })
+
+        document.getElementById('clear').addEventListener("click", function () {
+            if (isDrawing) {
+                clearPage();
+                server.send(JSON.stringify({type:"clear"}));
+            }
+        })
+
+        function clearPage() {
+            clickX.length = 0;
+            clickY.length = 0;
+            clickDrag.length = 0;
+            clickColor.length = 0;
+            clickSize.length = 0;
+            index = 0;
+            context.clearRect(0, 0, 640, 640);
+        }
+
+        canvas.addEventListener('mousedown', function (e) {
+            if (isDrawing) {
+                status = 1;
+                addPoint (e, false);
+            }
+        })
+
+        canvas.addEventListener('mousemove', function (e) {
+            if (status > 0) {
+                addPoint(e, true);
+            }
+        })
+        
+        canvas.addEventListener('mouseup', function () {
+            status = 0;
+        })
+
+        canvas.addEventListener('mouseout', function () {
+            status = 0;
+        })
+
+        function addPoint (e, s) {
+            addClick(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop, s);
+            draw();
+        }
+
+        function addClick (x, y, dragging) {
+            clickX.push(x);
+            clickY.push(y);
+            clickDrag.push(dragging);
+            clickColor.push(color);
+            clickSize.push(size);
+        }
+
+        function beginRound () {
+            server.send(JSON.stringify({
+                type: "begin"
+            }))
+        }
+
+        function draw () {
+            context.clearRect(0, 0, 640, 640);
+
+            context.lineJoin = "round";
+
+            for (var i = 0; i < clickX.length; i++) {		
+                context.beginPath ();
+                if (clickDrag[i] && i){
+                    context.moveTo (clickX[i-1], clickY[i-1]);
+                }else{
+                    context.moveTo (clickX[i]-1, clickY[i]);
+                }
+                context.strokeStyle = clickColor[i];
+                context.lineWidth = clickSize[i];
+                context.lineTo (clickX[i], clickY[i]);
+                context.closePath ();
+                context.stroke ();
+            }
+        }
+
+    </script>
+</body>
+</html>
