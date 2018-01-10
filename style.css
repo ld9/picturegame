@@ -1,0 +1,118 @@
+#main {
+    font-family: arial;
+    display: flex;
+    user-select: none;
+    transition: 0.25s ease;
+}
+#heading{
+    background-color: rgb(85, 125, 255);
+    font-size: 24px;
+    color: rgb(255, 255, 255);
+    height: 32px;
+    display: flex;
+    vertical-align: center;
+    border: 1px solid black;
+    border-bottom: none;
+}
+#word {
+    letter-spacing: 6px;
+}
+#time {
+    background-color: rgb(25, 195, 35);
+    margin-right: 8px;
+    padding: 0 8px;
+}
+#sidebar {
+    border: 1px solid black;
+    border-left: none;
+    width: 240px;
+    height: 673px;
+    display: flex;
+    flex-direction: column;
+}
+#canvas {
+    border-right: none;
+}
+#chat {
+    flex-direction: column;
+}
+#tools {
+    border-bottom: 1px solid black;
+    display: flex;
+    flex-direction: column;
+}
+#chat, #tools {
+    display: flex;
+    height: 50%;
+}
+#chatter {
+    width: 100%;
+    border: none;
+    border-top: 1px solid black;
+    margin-bottom: 0;
+    margin-top: auto;
+}
+#chat-text {
+    overflow-y: scroll;
+    border-bottom: 1px solid black;
+}
+.color {
+  padding: 4px;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+.color:hover {
+  padding-left: 12px;
+}
+#sizes {
+    display: inherit;
+    width: 100%;
+    border-bottom: 1px solid black;
+    height: 68px;
+}
+#sizes > div {
+    display: inherit;
+    width: 100%;
+    flex-direction: column;
+    margin: 0 auto;
+}
+#sizes > div > div {
+    margin: 8px auto;
+}
+#sizes > div > div:hover {
+    cursor: pointer;
+    font-weight: bold;
+    text-align: center;
+}
+#clear {
+    transition: 0.25s ease;
+    padding: 8px;
+    text-align: center;
+    background-color: rgb(215, 85, 95);
+}
+#clear:hover {
+    cursor: pointer;
+    background-color: rgb(255, 55, 55);
+}
+.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+#plist {
+    width: 146px;
+}
+#pheading {
+    margin: 0 auto;
+    font-size: 24px;
+    text-align: center;
+}
+#score-name {
+    font-size: 16px;
+}
+#plist > div {
+    padding: 4px;
+    border-bottom: 1px solid black;
+}
+.score-name {
+    font-size: 22px;
+}
